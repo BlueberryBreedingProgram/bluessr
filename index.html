@@ -64,11 +64,12 @@
             console.log('Files uploaded successfully');
 
             // Call the backend........
-            fetch('https://us-central1-rare-journey-387212.cloudfunctions.net/BBPssr', {
+            fetch('https://cors-anywhere.herokuapp.com/https://us-central1-rare-journey-387212.cloudfunctions.net/BBPssr', {
                 method: 'POST',
                 mode: 'cors',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest' // This header signals to the CORS proxy that this is a same-origin request
                 },
                 body: JSON.stringify({
                     "directoryGUID": directoryGUID
