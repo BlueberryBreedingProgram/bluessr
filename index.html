@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blueberry SSR Tech Demo</title>
+    <style>
+        body {
+            background-color: lightblue;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+</head>
+<body>
+    <h1>Blueberry SSR Tech Demo</h1>
+    <p>Reference Excel File:</p>
+    <input type="file" id="referenceFile">
+    <p>Search Input Excel File:</p>
+    <input type="file" id="searchFile">
+    <br><br>
+    <button onclick="uploadFiles()">Submit</button>
+    <p id="uploadStatus"></p>
+    <p id="gcFunctionResponse"></p>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5M8_zvQno9yftCm4Rte78ovwAysBRJag",
+            authDomain: "blueberry-ssr.firebaseapp.com",
+            projectId: "blueberry-ssr",
+            storageBucket: "blueberry-ssr.appspot.com",
+            messagingSenderId: "944490814895",
+            appId: "1:944490814895:web:14b301b630e196a1f5a35a",
+            measurementId: "G-DDYT37G1XJ"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        var storage = firebase.storage();
+
+        async function uploadFiles() {
+            const refFile = document.getElementById('referenceFile').files[0];
+            const searchFile = document.getElementById('searchFile').files[0];
+
+            // Create a unique GUID for the folder name
+            var directoryGUID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+
+            // Fix the file names as reference.xlsx and input.xlsx
+            var refStorageRef = storage.ref(directoryGUID + '/reference.xlsx');
+            var searchStorageRef = storage.ref(directoryGUID + '/input.xlsx');
+
+            var uploadStatusElement = document.getElementById('uploadStatus');
+            uploadStatusElement.textContent = "Uploading files, please wait....";
+            uploadStatusElement.style.color = "green";
+
+            await Promise.all([
+                refStorageRef.put(refFile),
+                searchStorageRef.put(searchFile)
+            ]);
+
+            console.log('Files uploaded successfully');
+
+            // Call the backend........
+            fetch('https://us-east1-rare-journey-387212.cloudfunctions.net/BBPssr', {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    "directoryGUID": directoryGUID
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Google Cloud Function Response:', data);
+                var gcFunctionResponseElement = document.getElementById('gcFunctionResponse');
+                var formattedData = "Message: " + data.message + "<br>Top N genotypes:<br><ul>";
+                for (var genotype in data.top_N_genotypes) {
+                    formattedData += "<li>" + genotype + ": " + data.top_N_genotypes[genotype] + "</li>";
+                }
+                formattedData += "</ul>";
+                gcFunctionResponseElement.innerHTML = formattedData;
+
+                var dendrogramRef = storage.ref(directoryGUID + '/dendrogram.png');
+
+                dendrogramRef.getDownloadURL()
+                    .then((url) => {
+                        // Create an img element and set its src to the image URL
+                        var img = document.createElement('img');
+                        img.src = url;
+                        img.width = 700; // You can adjust this to your needs
+                        img.height = 500; // You can adjust this to your needs
+                        // Append the img element to the body
+                        document.body.appendChild(img);
+                    })
+                    .catch((error) => {
+                        console.error('Error:', error);
+                    });
+            })
+
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
